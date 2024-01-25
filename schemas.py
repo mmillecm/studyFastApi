@@ -1,24 +1,44 @@
-import json
-
-from pydantic import BaseModel
+from sqlmodel import Field, SQLModel, Relationship
 
 
-class CarInput(BaseModel):
+class TripInput(SQLModel):
+    start: int
+    end: int
+    description: str
+
+
+class TripOutput(TripInput):
+    id: int
+
+
+class Trip(TripInput, table=True):
+    id: int | None = Field(primary_key=True, default=None)
+    car_id: int = Field(foreign_key="car.id")
+    car: "Car" = Relationship(back_populates="trips")
+
+
+class CarInput(SQLModel):
     size: str
     fuel: str | None = "electric"
     doors: int
     transmission: str | None = "auto"
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "size": "m",
+                "doors": 4,
+                "transmission": "manual",
+                "fuel": "hybrid"
+            }
+        }
+
+
+class Car(CarInput, table=True):
+    id: int | None = Field(primary_key=True, default=None)
+    trips: list[Trip] = Relationship(back_populates="car")
+
 
 class CarOutput(CarInput):
     id: int
-
-
-def load_db() -> list[CarOutput]:
-    with open("cars.json") as file:
-        return [CarOutput.parse_obj(obj) for obj in json.load(file)]
-
-
-def save_db(cars: list[CarInput]):
-    with open("cars.json", "w") as file:
-        json.dump([car.dict() for car in cars], file, indent=4)
+    trips: list[TripOutput] = []
